@@ -117,3 +117,7 @@ SaleClarity code is provided under the [MIT licence](LICENSE). Third-party
 services, trade marks and logos retain their respective rights. The licence
 does not grant rights to the names or brands, or source code of the separately
 hosted Properoute and Completia products.
+
+## Organiser clarification
+
+The organisers confirmed that SaleClarity’s AI and PayPal code may be published under an OSI-approved licence, while Properoute and Completia remain external proprietary services. Judges must have free, unrestricted access to the full working demo through 15 December 2026. This repository excludes those products’ source code.
