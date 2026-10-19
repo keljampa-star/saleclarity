@@ -1,0 +1,31 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import {DatabaseSync} from 'node:sqlite';
+import worker from '../worker/index.js';
+const source=fs.readFileSync(new URL('../worker/index.js',import.meta.url),'utf8');
+const html=JSON.parse(source.match(/const HTML=(".*");/)[1]);
+const db=new DatabaseSync(':memory:');db.exec(fs.readFileSync(new URL('../migrations/0001_ai_usage.sql',import.meta.url),'utf8'));
+const DB={prepare(sql){return{bind(...args){const statement=db.prepare(sql);return{async first(){return statement.get(...args)},async run(){return statement.run(...args)}}}}}};
+const env={DB,OPENAI_API_KEY:'mock-key'};
+let calls=0;
+const realFetch=globalThis.fetch;
+globalThis.fetch=async()=>{calls++;return Response.json({output:[{content:[{type:'output_text',text:JSON.stringify({insight:'Record the facts and ask your solicitor.',steps:['Gather information','Ask your solicitor','Track the response']})}]}]})};
+const base={stage:'preparing',situation:'I am just starting',pressure:'none',needs:['paperwork']};
+function request(input=base,ip='192.0.2.1',settings=env){return worker.fetch(new Request('https://test/api/advice',{method:'POST',headers:{'CF-Connecting-IP':ip},body:JSON.stringify(input)}),settings)}
+const reset=()=>{db.exec('DELETE FROM ai_usage');calls=0};
+test('recommendation, clarification, quota and page checks',async t=>{
+ await t.test('preparation needs recommend Properoute',async()=>{reset();const data=await(await request()).json();assert.deepEqual(data.products,['properoute']);assert.equal(data.steps.length,3)});
+ await t.test('property concern requires solicitor follow-up before AI call',async()=>{reset();const data=await(await request({...base,pressure:'lease'})).json();assert.equal(data.needsSolicitorStatus,true);assert.equal(calls,0)});
+ await t.test('preparation plus property concern recommends both for every solicitor status',async()=>{reset();for(const solicitorStatus of ['told','notyet','unsure']){const data=await(await request({...base,pressure:'lease',solicitorStatus})).json();assert.deepEqual(data.products,['properoute','completia']);assert.ok(data.solicitorGuidance)}});
+ await t.test('coordination-only route recommends Completia',async()=>{reset();const data=await(await request({stage:'underway',situation:'Clear updates between parties',pressure:'none',needs:['updates']})).json();assert.deepEqual(data.products,['completia'])});
+ await t.test('uncertain route asks a clarification; guidance only has no paid match',async()=>{reset();const input={stage:'unsure',situation:'Not sure yet',pressure:'none',needs:['unknown']};assert.equal((await(await request(input)).json()).needsClarification,true);assert.equal(calls,0);assert.deepEqual((await(await request({...input,supportScope:'guidance'})).json()).products,[])});
+ await t.test('invalid input and cross-origin calls cannot consume AI',async()=>{reset();assert.equal((await request({...base,stage:'invalid'})).status,400);assert.equal((await worker.fetch(new Request('https://test/api/advice',{method:'POST',headers:{Origin:'https://other'},body:JSON.stringify(base)}),env)).status,403);assert.equal(calls,0)});
+ await t.test('sixth hourly request is blocked; another address can proceed',async()=>{reset();for(let i=0;i<5;i++)assert.equal((await request()).status,200);assert.equal((await request()).status,429);assert.equal(calls,5);assert.equal((await request(base,'192.0.2.2')).status,200)});
+ await t.test('daily cap is reserved atomically and persists across handler instances',async()=>{reset();const day=new Date().toISOString().slice(0,10);for(let i=0;i<99;i++)db.prepare('INSERT INTO ai_usage(day,hour,client) VALUES(?,?,?)').run(day,'seed','seed'+i);const statuses=(await Promise.all([request(base,'192.0.2.3'),request(base,'192.0.2.4')])).map(r=>r.status).sort();assert.deepEqual(statuses,[200,429]);assert.equal(calls,1)});
+ await t.test('expired counters reset and missing storage fails closed',async()=>{db.exec("UPDATE ai_usage SET day='2000-01-01',hour='2000-01-01T00'");assert.equal((await request()).status,200);assert.equal((await request(base,'192.0.2.3',{OPENAI_API_KEY:'mock-key'})).status,503)});
+ await t.test('operator can permit unrestricted local judge evaluation',async()=>{assert.equal((await request(base,'192.0.2.3',{OPENAI_API_KEY:'mock-key',AI_LIMITS_DISABLED:'true'})).status,200)});
+ await t.test('page has visible working status, reduced motion, no sign-in and one product-card path',async()=>{const page=await(await worker.fetch(new Request('https://test/'),{})).text();assert.match(page,/Thinking about your circumstances/);assert.match(page,/position:fixed/);assert.match(page,/prefers-reduced-motion:reduce/);assert.doesNotMatch(page,/signin-with-chatgpt/);assert.match(page,/const action=document.createElement\(passes\[k\]\?'a':'button'\)/);assert.match(page,/box.hidden=true/);assert.match(page,/guidance-arrived/);new Function(html.match(/<script>([\s\S]*?)<\/script>/)[1])});
+ await t.test('connected product routes redirect to the hosted apps',async()=>{for(const [path,expected] of [['/properoute.html','https://ppr-ready-record.keljamarco.chatgpt.site/'],['/completia-start.html','https://completia.keljamarco.chatgpt.site/']]){const response=await worker.fetch(new Request('https://test'+path),{});assert.equal(response.status,302);assert.equal(response.headers.get('location'),expected)}});
+ globalThis.fetch=realFetch;db.close();
+});

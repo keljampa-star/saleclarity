@@ -1,0 +1,13 @@
+{
+  "name": "saleclarity",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "AI-guided property sale planning with PayPal Sandbox app passes",
+  "engines": { "node": ">=24" },
+  "scripts": {
+    "start": "node --env-file-if-exists=.dev.vars scripts/serve.mjs",
+    "test": "node --test scripts/core.test.mjs"
+  },
+  "license": "MIT"
+}
