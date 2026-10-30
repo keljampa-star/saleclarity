@@ -97,10 +97,12 @@ local/session state. Usage counting stores a daily SHA-256 hash of the client
 network address and UTC hour/day, not property answers; older day rows are
 removed on a later successful request. Hashing does not guarantee anonymity.
 
-Public demo limits are five requests per network per hour and 100 per day.
-They persist in D1/SQLite and are reserved atomically before an AI call.
-See the testing guide for unrestricted local evaluation and the outstanding
-hosted judge-access arrangement.
+The hosted demo is public and requires no ChatGPT account or personal API key.
+It allows 100 AI requests per network per UTC hour and 5,000 across the demo
+per UTC day, shared with Properoute’s embedded AI review. Judge buyer
+credentials are supplied privately through Devpost. For access problems,
+contact keljamarco@aol.co.uk. The repository’s local defaults remain five
+requests per network per hour and 100 per day.
 
 Passes are **Sandbox demonstration state**, not secure production entitlements.
 Guidance is not legal advice, verified disclosure, title certification or a
