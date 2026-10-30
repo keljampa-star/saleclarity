@@ -20,10 +20,27 @@ A reliable example that recommends both products:
 Sandbox test funds are not real money. Demo passes persist only in the current
 browser session. Closing an incognito session removes them.
 
-The submission owner must supply a dedicated Sandbox buyer email/password in
-Devpost's judge testing instructions. These credentials are not yet included in
-this repository. Never publish a real account password, merchant password,
-OpenAI API key or PayPal client secret.
+Dedicated Sandbox buyer credentials are supplied in Devpost’s private
+testing instructions and attached judge testing guide. Credentials are
+intentionally kept out of this public repository.
+
+## Judge access and AI allowances
+
+Judges can use the hosted demo free of charge without a ChatGPT account
+or personal OpenAI API key. The demo will remain available through
+15 December 2026.
+
+The hosted demo allows 100 AI requests per network per UTC hour and
+5,000 across the site per UTC day, shared with Properoute’s embedded
+AI review. People on a shared network share the hourly allowance.
+An attempted AI call consumes a slot even if the provider fails.
+
+For allowance or access problems, contact keljamarco@aol.co.uk.
+
+The repository’s local defaults remain five requests per network per
+hour and 100 per day. Optional local testing uses your own API key;
+set AI_LIMITS_DISABLED=true in .dev.vars to disable local limits.
+Judges do not need to run the project locally.
 
 ## Allowances and unrestricted testing
 
